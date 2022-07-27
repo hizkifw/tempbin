@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>tempbin</title>
+    <link rel="stylesheet" href="/pico.min.css" />
+  </head>
+
+  <body>
+    <main class="container">
+      <hgroup>
+        <h1>tempbin</h1>
+        <h2>temporary text paste and file upload</h2>
+      </hgroup>
+      <form method="post" action="/upload">
+        <div class="grid">
+          <div>
+            <p>Upload a file</p>
+            <input type="file" />
+          </div>
+          <div>
+            <p>Or paste some text</p>
+            <textarea name="data"></textarea>
+          </div>
+        </div>
+        <button type="submit">Upload</button>
+      </form>
+    </main>
+  </body>
+</html>
