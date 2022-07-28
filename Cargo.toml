@@ -18,3 +18,8 @@ rand = "0.8.5"
 serde = { version = "1", features = ["derive"] }
 tokio = { version = "1.20", features = ["fs", "macros"] }
 tokio-util = "0.7.3"
+urlencoding = "2.1.0"
+
+[profile.release]
+lto = true
+strip = true

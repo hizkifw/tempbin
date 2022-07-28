@@ -51,7 +51,11 @@ fn build_file_url(req: HttpRequest, id: &str, filename: &str) -> Result<String, 
     Ok(Uri::builder()
         .scheme("https")
         .authority(host)
-        .path_and_query(format!("/{}/{}", id, filename))
+        .path_and_query(format!(
+            "/{}/{}",
+            urlencoding::encode(id),
+            urlencoding::encode(filename)
+        ))
         .build()?
         .to_string())
 }

@@ -21,3 +21,11 @@ git clone https://github.com/hizkifw/tempbin
 cd tempbin
 LISTEN='127.0.0.1:1337' cargo run
 ```
+
+## Configuration
+
+Right now, most of the configuration is baked into the binary. Edit the source
+code and recompile it to update.
+
+A convenience script `build.sh` is provided to help generate statically linked
+release builds.
