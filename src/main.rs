@@ -16,6 +16,7 @@ use std::{
 };
 use tokio::{fs::File, io::AsyncWriteExt, time::Duration};
 
+const FILE_SIZE_LIMIT: usize = 2_000_000_000;
 const UPLOADS_FOLDER: &str = "uploads";
 const INDEX_FILE: &str = include_str!("./index.html");
 lazy_static! {
@@ -257,6 +258,7 @@ async fn main() -> anyhow::Result<()> {
     info!("Listening on {}", bind);
     HttpServer::new(|| {
         App::new()
+            .app_data(web::PayloadConfig::new(FILE_SIZE_LIMIT))
             .wrap(actix_web::middleware::Logger::default())
             .service(index)
             .service(get_file_without_filename)

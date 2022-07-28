@@ -46,15 +46,52 @@
     <main class="container">
       <hgroup>
         <h1>tempbin</h1>
-        <p class="subtitle">temporary text paste and file upload</p>
+        <p class="subtitle">files and pastes expire after 24 hours</p>
       </hgroup>
       <form method="post" action="/upload" enctype="multipart/form-data">
-        <p>Upload a file</p>
-        <input type="file" name="file" />
+        <p>Upload a file, or paste an image</p>
+        <input type="file" name="file" id="file" />
         <p>Or paste some text</p>
         <textarea name="text" rows="8"></textarea>
-        <button type="submit">Upload</button>
+        <button type="submit" id="submit">Upload</button>
       </form>
     </main>
+    <script>
+      // https://htmldom.dev/paste-an-image-from-the-clipboard/
+      // Handle the `paste` event
+      let isUploading = false;
+      document.addEventListener("paste", function (evt) {
+        if (isUploading) return;
+
+        // Get the data of clipboard
+        const clipboardItems = evt.clipboardData.items;
+        const items = [].slice
+          .call(clipboardItems)
+          .filter((item) => item.type.indexOf("image") !== -1);
+        if (items.length === 0) {
+          return;
+        }
+
+        // Get the blob of image
+        const blob = items[0].getAsFile();
+
+        // Upload
+        isUploading = true;
+        const submitButton = document.getElementById("submit");
+        submitButton.innerText = "Uploading image...";
+        fetch("/" + blob.name, { method: "PUT", body: blob })
+          .then((res) => res.text())
+          .then((res) => {
+            window.location.pathname = new URL(res).pathname;
+          })
+          .catch((err) => {
+            alert("Error uploading image!");
+            submitButton.innerText = "Upload";
+          })
+          .finally(() => {
+            isUploading = false;
+          });
+      });
+    </script>
   </body>
 </html>
