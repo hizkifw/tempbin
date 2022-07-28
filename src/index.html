@@ -71,24 +71,25 @@
         >
           Upload
         </button>
+        <button type="reset">Clear all</button>
       </form>
     </main>
     <script>
-      document.getElementById("curl").innerText = document
-        .getElementById("curl")
-        .innerText.replace("this.domain", window.location.host);
+      document.getElementById('curl').innerText = document
+        .getElementById('curl')
+        .innerText.replace('this.domain', window.location.host);
 
       // https://htmldom.dev/paste-an-image-from-the-clipboard/
       // Handle the `paste` event
       let isUploading = false;
-      document.addEventListener("paste", function (evt) {
+      document.addEventListener('paste', function (evt) {
         if (isUploading) return;
 
         // Get the data of clipboard
         const clipboardItems = evt.clipboardData.items;
         const items = [].slice
           .call(clipboardItems)
-          .filter((item) => item.type.indexOf("image") !== -1);
+          .filter((item) => item.type.indexOf('image') !== -1);
         if (items.length === 0) {
           return;
         }
@@ -98,16 +99,16 @@
 
         // Upload
         isUploading = true;
-        const submitButton = document.getElementById("submit");
-        submitButton.innerText = "Uploading image...";
-        fetch("/" + blob.name, { method: "PUT", body: blob })
+        const submitButton = document.getElementById('submit');
+        submitButton.innerText = 'Uploading image...';
+        fetch('/' + blob.name, { method: 'PUT', body: blob })
           .then((res) => res.text())
           .then((res) => {
             window.location.pathname = new URL(res).pathname;
           })
           .catch((err) => {
-            alert("Error uploading image!");
-            submitButton.innerText = "Upload";
+            alert('Error uploading image!');
+            submitButton.innerText = 'Upload';
           })
           .finally(() => {
             isUploading = false;
