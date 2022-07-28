@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 use actix_multipart::Multipart;
 use actix_web::{
     error, get,
@@ -5,9 +8,20 @@ use actix_web::{
     post, put, web, App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use futures_util::stream::StreamExt as _;
+use lazy_static::lazy_static;
 use rand::{distributions::Alphanumeric, Rng};
-use std::path::{Path, PathBuf};
-use tokio::{fs::File, io::AsyncWriteExt};
+use std::{
+    path::{Path, PathBuf},
+    time::SystemTime,
+};
+use tokio::{fs::File, io::AsyncWriteExt, time::Duration};
+
+const UPLOADS_FOLDER: &str = "uploads";
+const INDEX_FILE: &str = include_str!("./index.html");
+lazy_static! {
+    static ref SYSTIME_NOW: SystemTime = SystemTime::now();
+    static ref PURGE_AFTER: Duration = Duration::from_secs(3600 * 24);
+}
 
 /// Returns the value of the Host header from a HttpRequest.
 fn get_host_header(req: HttpRequest) -> Result<String, actix_web::Error> {
@@ -46,7 +60,7 @@ fn build_local_path(id: &str, filename: &str) -> PathBuf {
         Some(ext) => ext.to_str().unwrap_or("bin"),
         None => "bin",
     };
-    Path::new("uploads").join(&id).with_extension(ext)
+    Path::new(UPLOADS_FOLDER).join(&id).with_extension(ext)
 }
 
 #[post("/upload")]
@@ -54,8 +68,19 @@ async fn form_upload(
     mut payload: Multipart,
     req: HttpRequest,
 ) -> actix_web::Result<impl Responder, actix_web::Error> {
-    if let Some(field) = payload.next().await {
+    while let Some(field) = payload.next().await {
         let mut field = field?;
+
+        // Skip if file is empty
+        if field.name() == "file"
+            && field
+                .content_disposition()
+                .get_filename()
+                .unwrap_or("")
+                .is_empty()
+        {
+            continue;
+        }
 
         // Get filename
         let filename = if field.name() == "text" {
@@ -84,10 +109,10 @@ async fn form_upload(
 
         // Return the file URL
         let url = build_file_url(req, &id, &filename)?;
-        Ok(HttpResponse::Ok().body(url))
-    } else {
-        Ok(HttpResponse::BadRequest().body("At least one attachment is required"))
+        return Ok(HttpResponse::Ok().body(url));
     }
+
+    Ok(HttpResponse::BadRequest().body("At least one attachment is required"))
 }
 
 #[put("/{filename}")]
@@ -113,9 +138,10 @@ async fn put_file(
     Ok(HttpResponse::Ok().body(url))
 }
 
+/// Returns the file as a streaming response
 async fn get_file(id_ext: &str) -> actix_web::Result<HttpResponse, actix_web::Error> {
     // Get the local filename by appending the extension to the id
-    let local_file = Path::new("uploads").join(id_ext);
+    let local_file = Path::new(UPLOADS_FOLDER).join(id_ext);
 
     // Get the file
     let file = match File::open(&local_file).await {
@@ -164,23 +190,88 @@ async fn get_file_without_filename(
 
 #[get("/")]
 async fn index() -> actix_web::Result<impl Responder, actix_web::Error> {
-    let index_file = include_str!("../static/index.html");
     return Ok(HttpResponse::Ok()
         .insert_header(header::ContentType::html())
-        .body(index_file));
+        .body(INDEX_FILE));
+}
+
+/// Loops through all the files in the uploads directory and deletes files older
+/// than PURGE_AFTER.
+async fn purge() -> anyhow::Result<()> {
+    // Loop through all the files in the folder
+    let mut dir = tokio::fs::read_dir(UPLOADS_FOLDER).await?;
+    while let Ok(Some(entry)) = dir.next_entry().await {
+        let created_at = match entry.metadata().await {
+            Ok(meta) => meta.created().unwrap_or(*SYSTIME_NOW),
+            _ => *SYSTIME_NOW,
+        };
+
+        // Check if file is older than threshold
+        let dur = SystemTime::now()
+            .duration_since(created_at)
+            .unwrap_or(Duration::from_secs(0));
+        if dur > *PURGE_AFTER {
+            // Delete
+            if let Err(e) = tokio::fs::remove_file(entry.path()).await {
+                error!(
+                    "Error deleting file {}: {:?}",
+                    entry.path().to_string_lossy(),
+                    e
+                );
+            } else {
+                info!("Deleted file {}", entry.path().to_string_lossy());
+            }
+        }
+    }
+
+    Ok(())
+}
+
+async fn purge_loop(mut rx_stop: tokio::sync::oneshot::Receiver<()>) {
+    let mut interval = tokio::time::interval(Duration::from_secs(60));
+    loop {
+        tokio::select! {
+            _ = interval.tick() => {
+                if let Err(e) = purge().await {
+                    error!("Error purging files: {:?}", e);
+                }
+            },
+            _ = &mut rx_stop => break,
+        }
+    }
 }
 
 #[actix_web::main]
-async fn main() -> std::io::Result<()> {
+async fn main() -> anyhow::Result<()> {
+    // Set up logger
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
+
+    // Get environment variables
+    let bind = std::env::var("LISTEN").unwrap_or("127.0.0.1:1337".into());
+
+    // Set up purger loop
+    let (tx_stop, stop_loop) = tokio::sync::oneshot::channel();
+    let t_loop = tokio::spawn(purge_loop(stop_loop));
+
+    // Start the HTTP server
+    info!("Listening on {}", bind);
     HttpServer::new(|| {
         App::new()
+            .wrap(actix_web::middleware::Logger::default())
             .service(index)
             .service(get_file_without_filename)
             .service(get_file_with_filename)
             .service(put_file)
             .service(form_upload)
     })
-    .bind(("127.0.0.1", 1337))?
+    .bind(bind)?
     .run()
-    .await
+    .await?;
+
+    // Send the stop signal and wait
+    info!("Shutting down...");
+    tx_stop.send(()).unwrap();
+    t_loop.await?;
+
+    Ok(())
 }
