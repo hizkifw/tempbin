@@ -2,26 +2,57 @@
 <html>
   <head>
     <title>tempbin</title>
-    <link rel="stylesheet" href="/pico.min.css" />
+    <style>
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir,
+          segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto, noto,
+          arial, sans-serif;
+      }
+      .container {
+        margin: 0 auto;
+        max-width: 540px;
+        padding: 1em;
+        box-sizing: content-box;
+      }
+      h1 {
+        margin: 0;
+        padding: 0;
+      }
+      p.subtitle {
+        margin-top: 0;
+      }
+      textarea {
+        width: 100%;
+        display: block;
+        box-sizing: border-box;
+        resize: vertical;
+
+        background: white;
+        border: 1px solid #333;
+        margin-bottom: 1em;
+      }
+      button {
+        background: #333;
+        color: white;
+        border: 0;
+        padding: 0.5em 1em;
+        cursor: pointer;
+      }
+    </style>
   </head>
 
   <body>
     <main class="container">
       <hgroup>
         <h1>tempbin</h1>
-        <h2>temporary text paste and file upload</h2>
+        <p class="subtitle">temporary text paste and file upload</p>
       </hgroup>
-      <form method="post" action="/upload">
-        <div class="grid">
-          <div>
-            <p>Upload a file</p>
-            <input type="file" />
-          </div>
-          <div>
-            <p>Or paste some text</p>
-            <textarea name="data"></textarea>
-          </div>
-        </div>
+      <form method="post" action="/upload" enctype="multipart/form-data">
+        <p>Upload a file</p>
+        <input type="file" name="file" />
+        <p>Or paste some text</p>
+        <textarea name="text" rows="8"></textarea>
         <button type="submit">Upload</button>
       </form>
     </main>
