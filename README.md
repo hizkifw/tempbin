@@ -1,6 +1,15 @@
 # tempbin
 
+Self-hosted temporary text paste, file and image host.
+
 ![Screenshot](https://user-images.githubusercontent.com/7418049/181550722-773781ad-bf92-4bce-ae09-e7432263194f.png)
+
+## Features
+
+- Upload images by pasting on the page
+- Files get deleted after 24 hours
+- JavaScript not required
+- Upload from terminal: `curl --upload-file image.png http://localhost:1337`
 
 ## Set up
 
