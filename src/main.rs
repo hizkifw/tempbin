@@ -20,7 +20,6 @@ const FILE_SIZE_LIMIT: usize = 2_000_000_000;
 const UPLOADS_FOLDER: &str = "uploads";
 const INDEX_FILE: &str = include_str!("./index.html");
 lazy_static! {
-    static ref SYSTIME_NOW: SystemTime = SystemTime::now();
     static ref PURGE_AFTER: Duration = Duration::from_secs(3600 * 24);
 }
 
@@ -206,10 +205,12 @@ async fn purge() -> anyhow::Result<()> {
     // Loop through all the files in the folder
     let mut dir = tokio::fs::read_dir(UPLOADS_FOLDER).await?;
     while let Ok(Some(entry)) = dir.next_entry().await {
-        let created_at = match entry.metadata().await {
-            Ok(meta) => meta.created().unwrap_or(*SYSTIME_NOW),
-            _ => *SYSTIME_NOW,
-        };
+        let created_at = entry
+            .metadata()
+            .await
+            .expect("failed to get metadata")
+            .modified()
+            .expect("failed to get created time");
 
         // Check if file is older than threshold
         let dur = SystemTime::now()
