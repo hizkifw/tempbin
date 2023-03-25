@@ -52,9 +52,10 @@ fn build_file_url(req: HttpRequest, id: &str, filename: &str) -> Result<String, 
         .scheme("https")
         .authority(host)
         .path_and_query(format!(
-            "/{}/{}",
+            "/{}/{}{}",
             urlencoding::encode(id),
-            urlencoding::encode(filename)
+            urlencoding::encode(filename),
+            if !filename.contains(".") { ".bin" } else { "" }
         ))
         .build()?
         .to_string())
