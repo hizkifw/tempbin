@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate log;
 
+use actix_files::NamedFile;
 use actix_multipart::Multipart;
 use actix_web::{
     error, get,
@@ -143,33 +144,15 @@ async fn put_file(
 }
 
 /// Returns the file as a streaming response
-async fn get_file(id_ext: &str) -> actix_web::Result<HttpResponse, actix_web::Error> {
-    // Get the local filename by appending the extension to the id
+async fn get_file(id_ext: &str) -> impl Responder {
     let local_file = Path::new(UPLOADS_FOLDER).join(id_ext);
-
-    // Get the file
-    let file = match File::open(&local_file).await {
-        Ok(file) => file,
-        Err(_) => return Ok(HttpResponse::NotFound().body("404 Not Found")),
-    };
-
-    // Build the response
-    let mut response = HttpResponse::Ok();
-
-    // Guess the mime type
-    if let Some(mime) = mime_guess::from_path(local_file).first() {
-        response.insert_header(header::ContentType(mime));
-    }
-
-    // Return the file stream
-    let stream = tokio_util::io::ReaderStream::new(file);
-    Ok(response.streaming(stream))
+    NamedFile::open_async(local_file).await
 }
 
 #[get("/{id}/{filename}")]
 async fn get_file_with_filename(
     path: web::Path<(String, String)>,
-) -> actix_web::Result<HttpResponse, actix_web::Error> {
+) -> actix_web::Result<impl Responder> {
     let (id, filename) = path.into_inner();
 
     // Get the local filename by appending the extension to the id
@@ -181,22 +164,20 @@ async fn get_file_with_filename(
         .to_str()
         .ok_or(error::ErrorInternalServerError("Internal server error"))?;
 
-    get_file(id_ext).await
+    Ok(get_file(id_ext).await)
 }
 
 #[get("/{id_ext}")]
-async fn get_file_without_filename(
-    path: web::Path<String>,
-) -> actix_web::Result<HttpResponse, actix_web::Error> {
+async fn get_file_without_filename(path: web::Path<String>) -> impl Responder {
     let id_ext = path.into_inner();
     get_file(&id_ext).await
 }
 
 #[get("/")]
-async fn index() -> actix_web::Result<impl Responder, actix_web::Error> {
-    return Ok(HttpResponse::Ok()
+async fn index() -> impl Responder {
+    HttpResponse::Ok()
         .insert_header(header::ContentType::html())
-        .body(INDEX_FILE));
+        .body(INDEX_FILE)
 }
 
 /// Loops through all the files in the uploads directory and deletes files older
