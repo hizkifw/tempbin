@@ -20,6 +20,12 @@ git clone https://github.com/hizkifw/tempbin
 # Run it
 cd tempbin
 LISTEN='127.0.0.1:1337' cargo run
+
+# Or, build the Docker image
+docker build -t tempbin .
+
+# Or, run the pre-built docker image
+docker run -v $(pwd)/uploads:/opt/app/uploads ghcr.io/hizkifw/tempbin:main
 ```
 
 ## Configuration
