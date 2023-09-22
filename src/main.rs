@@ -237,6 +237,9 @@ async fn main() -> anyhow::Result<()> {
     // Get environment variables
     let bind = std::env::var("LISTEN").unwrap_or("127.0.0.1:1337".into());
 
+    // Create uploads folder
+    tokio::fs::create_dir_all(UPLOADS_FOLDER).await?;
+
     // Set up purger loop
     let (tx_stop, stop_loop) = tokio::sync::oneshot::channel();
     let t_loop = tokio::spawn(purge_loop(stop_loop));
